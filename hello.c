@@ -35,6 +35,9 @@
 #include "drivers/rit128x96x4.h"
 #include "utils/ustdlib.h"
 
+#define X_MAX 120
+#define Y_MAX 88
+
 volatile unsigned long g_ulSystemClock;
 
 volatile unsigned int g_millisecond_hundredths_counter;
@@ -42,34 +45,105 @@ volatile unsigned int g_millisecond_tenths_counter;
 volatile unsigned int g_seconds_counter;
 volatile unsigned int g_minutes_counter;
 
-// Max is ?
-volatile unsigned int g_player_y_axis_counter = 12;
-volatile unsigned int g_opponent_y_axis_counter = 12;
+// docs say x is 96, y is 128
+// x max is 120
+// y max is 88
+volatile unsigned int g_player_x_axis_counter = 0;
+volatile unsigned int g_player_y_axis_counter = 44;
 
+volatile unsigned int g_opponent_x_axis_counter = X_MAX-1;
+volatile unsigned int g_opponent_y_axis_counter = 44;
+
+volatile unsigned int g_ball_y_axis_counter = 44;
+volatile unsigned int g_ball_x_axis_counter = 60;
+
+volatile unsigned int g_ball_x_step = 1;
+volatile unsigned int g_ball_y_step = 1;
+
+// 0 == left, 1 == right
+volatile unsigned int g_ball_x_direction = 0;
+// 0 == up, 1 == down
+volatile unsigned int g_ball_y_direction = 0;
+
+
+void CollisionDetector(void) {
+	if (g_ball_x_axis_counter == g_player_x_axis_counter+3
+			/*
+		&& (
+			g_ball_y_axis_counter == g_player_y_axis_counter
+			||
+			g_ball_y_axis_counter == g_player_y_axis_counter-1
+			||
+			g_ball_y_axis_counter == g_player_y_axis_counter-2
+		)
+		*/
+	) {
+		g_ball_x_direction = 1;
+	    RIT128x96x4StringDraw("test ok", 44, 0, 11);
+
+	}
+	else if (g_ball_x_axis_counter == g_opponent_x_axis_counter-1
+		&& g_ball_y_axis_counter == g_opponent_y_axis_counter
+	) {
+		g_ball_x_direction = 0;
+	}
+	else if (g_ball_y_axis_counter == 1 || g_ball_y_axis_counter == Y_MAX-1) {
+		if (g_ball_y_direction == 1) {
+			g_ball_y_direction = 0;
+		}
+		else {
+			g_ball_y_direction = 1;
+		}
+	}
+/*
+	// left wall collision
+	else if (g_ball_x_axis_counter == 1)  || g_ball_x_axis_counter == 119) {
+
+	}
+	*/
+}
+
+void BallMovement(void) {
+	if (g_ball_x_direction == 0) {
+		g_ball_x_axis_counter--;
+	}
+	else {
+		g_ball_x_axis_counter++;
+	}
+}
 
 // Interrupt handler to catch button presses and start the scrolling function
+void BallMovementAnimation(void) {
 
 
-void PlayerMovement(void) {
-    //const char time[15];
-    //usprintf(time, "   %02d:%02d.%d   ", g_uiMinutes, g_uiSeconds, g_uiTenths);
-
-    RIT128x96x4StringDraw("", 0, g_player_y_axis_counter - 1, 11);
-    RIT128x96x4StringDraw("", 0, g_player_y_axis_counter - 2, 11);
-    RIT128x96x4StringDraw("", 0, g_player_y_axis_counter + 2, 11);
-    RIT128x96x4StringDraw("", 0, g_player_y_axis_counter + 1, 11);
-    RIT128x96x4StringDraw("", 0, g_player_y_axis_counter, 11);
-    RIT128x96x4StringDraw("|", 0, g_player_y_axis_counter, 11);
+    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter - 1, g_ball_y_axis_counter - 1, 11);
+    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter - 2, g_ball_y_axis_counter - 2, 11);
+    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter + 2, g_ball_y_axis_counter + 2, 11);
+    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter + 1, g_ball_y_axis_counter + 1, 11);
+    RIT128x96x4StringDraw("*", g_ball_x_axis_counter, g_ball_y_axis_counter, 11);
 
 }
 
-void OpponentMovement(void) {
+void PlayerMovementAnimation(void) {
     //const char time[15];
     //usprintf(time, "   %02d:%02d.%d   ", g_uiMinutes, g_uiSeconds, g_uiTenths);
 
-    RIT128x96x4StringDraw("", 80, g_opponent_y_axis_counter - 2, 11);
-    RIT128x96x4StringDraw("|", 80, g_opponent_y_axis_counter, 11);
-    RIT128x96x4StringDraw("", 80, g_opponent_y_axis_counter + 2, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 1, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 2, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 2, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 1, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter, 11);
+    RIT128x96x4StringDraw("|", g_player_x_axis_counter, g_player_y_axis_counter, 11);
+
+}
+
+void OpponentMovementAnimation(void) {
+    //const char time[15];
+    //usprintf(time, "   %02d:%02d.%d   ", g_uiMinutes, g_uiSeconds, g_uiTenths);
+
+    RIT128x96x4StringDraw("", g_opponent_x_axis_counter, g_opponent_y_axis_counter - 2, 11);
+    RIT128x96x4StringDraw("|", g_opponent_x_axis_counter, g_opponent_y_axis_counter, 11);
+    RIT128x96x4StringDraw("", g_opponent_x_axis_counter, g_opponent_y_axis_counter + 2, 11);
 
 }
 
@@ -95,7 +169,7 @@ GPIOEIntHandler(void)
     // DOWN
     if (ulData == 2)
     {
-    	if (g_player_y_axis_counter < 50) {
+    	if (g_player_y_axis_counter < Y_MAX-1) {
     		g_player_y_axis_counter++;
     	}
     }
@@ -126,9 +200,13 @@ SysTickIntHandler(void)
 
 	   if(g_millisecond_hundredths_counter > 99)
 	   {
+		   CollisionDetector();
 
-		   PlayerMovement();
-		   OpponentMovement();
+		   BallMovement();
+
+		   PlayerMovementAnimation();
+		   OpponentMovementAnimation();
+		   BallMovementAnimation();
 
 		   g_millisecond_hundredths_counter = 0;
 		   g_millisecond_tenths_counter++;
@@ -229,10 +307,9 @@ main(void)
     //
     IntEnable(INT_GPIOE);
 
-
-
     while(1)
     {
 
     }
 }
+
