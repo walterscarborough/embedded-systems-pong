@@ -40,6 +40,7 @@
 #define Y_MIN 0
 #define Y_MAX 88
 #define X_WALL_SPACER 5
+#define BOARD_TOLERANCE 7
 
 volatile unsigned long g_ulSystemClock;
 
@@ -71,15 +72,63 @@ volatile unsigned int g_ball_y_direction = 0;
 // Game state
 volatile unsigned int g_game_active = 1;
 
+int BallDirectionForBounceboardCollision(int bounceboard_y, int ball_y) {
+    int newBallDirection = 0;
+
+    // bottom
+    if (bounceboard_y + BOARD_TOLERANCE > ball_y
+        && bounceboard_y < ball_y
+    ) {
+        newBallDirection = 1;
+    }
+    // middle
+    else if (bounceboard_y == ball_y) {
+        newBallDirection = -1;
+    }
+    // top
+    else if (bounceboard_y - BOARD_TOLERANCE < ball_y
+        && bounceboard_y > ball_y
+    ) {
+        newBallDirection = 0;
+    }
+
+    return newBallDirection;
+}
+
+float BallYBounceAngle(int bounceboard_y, int ball_y) {
+
+    float ball_bounce_y_angle = 0.0;
+
+    // bottom
+    if (bounceboard_y + BOARD_TOLERANCE > ball_y
+        && bounceboard_y < ball_y
+    ) {
+        ball_bounce_y_angle = 0.2;
+
+    }
+    // middle
+    else if (bounceboard_y == ball_y) {
+        ball_bounce_y_angle = 0;
+    }
+    // top
+    else if (bounceboard_y - BOARD_TOLERANCE < ball_y
+        && bounceboard_y > ball_y
+    ) {
+        ball_bounce_y_angle = 0.2;
+    }
+
+    return ball_bounce_y_angle;
+}
+
 int IsYBounceable(int bounceboard_y, int ball_y) {
 
     int isBounceable = 0;
 
-    if (bounceboard_y + 8 > ball_y
-        && bounceboard_y - 8 < ball_y
+    if (bounceboard_y + BOARD_TOLERANCE > ball_y
+        && bounceboard_y - BOARD_TOLERANCE < ball_y
     ) {
         isBounceable = 1;
-        RIT128x96x4StringDraw("bounceable A", 44, 5, 11);
+        //RIT128x96x4StringDraw("bounceable A", 44, 5, 11);
     }
 
     return isBounceable;
@@ -96,8 +145,18 @@ void CollisionDetector(void) {
     ) {
         g_ball_x_direction = 1;
 
-        g_ball_y_step = 0.5;
-        RIT128x96x4StringDraw("if A", 44, 0, 11);
+        g_ball_y_step = BallYBounceAngle(g_player_y_axis_counter, g_ball_y_axis_counter);
+
+        float newBallDirection = BallDirectionForBounceboardCollision(g_player_y_axis_counter, g_ball_y_axis_counter);
+
+        if (newBallDirection == 1) {
+            g_ball_y_direction = 0;
+        }
+        else if (newBallDirection == 0) {
+            g_ball_y_direction = 1;
+        }
+
+        //RIT128x96x4StringDraw("if A", 44, 0, 11);
     }
     // Hit the opponent
     else if (g_ball_x_axis_counter == g_opponent_x_axis_counter - X_WALL_SPACER
@@ -105,7 +164,8 @@ void CollisionDetector(void) {
         && g_ball_x_direction == 1
     ) {
         g_ball_x_direction = 0;
-        RIT128x96x4StringDraw("if B", 44, 0, 11);
+        //RIT128x96x4StringDraw("if B", 44, 0, 11);
+        g_ball_y_step = BallYBounceAngle(g_opponent_y_axis_counter, g_ball_y_axis_counter);
     }
     // Hit the wall
     else if (g_ball_x_axis_counter == X_MIN || g_ball_x_axis_counter == X_MAX) {
@@ -130,12 +190,9 @@ void CollisionDetector(void) {
 void BallMovement(void) {
     if (g_ball_x_direction == 0) {
         g_ball_x_axis_counter--;
-
     }
     else {
         g_ball_x_axis_counter++;
-
-        g_ball_y_axis_counter += g_ball_y_step * 1;
     }
 
     if (g_ball_y_direction == 0) {
