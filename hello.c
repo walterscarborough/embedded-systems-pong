@@ -35,8 +35,11 @@
 #include "drivers/rit128x96x4.h"
 #include "utils/ustdlib.h"
 
+#define X_MIN 0
 #define X_MAX 120
+#define Y_MIN 0
 #define Y_MAX 88
+#define X_WALL_SPACER 5
 
 volatile unsigned long g_ulSystemClock;
 
@@ -54,62 +57,102 @@ volatile unsigned int g_player_y_axis_counter = 44;
 volatile unsigned int g_opponent_x_axis_counter = X_MAX-1;
 volatile unsigned int g_opponent_y_axis_counter = 44;
 
-volatile unsigned int g_ball_y_axis_counter = 44;
+volatile float g_ball_y_axis_counter = 44.0;
 volatile unsigned int g_ball_x_axis_counter = 60;
 
-volatile unsigned int g_ball_x_step = 1;
-volatile unsigned int g_ball_y_step = 1;
+volatile unsigned int g_ball_x_step = 0;
+volatile float g_ball_y_step = 0;
 
 // 0 == left, 1 == right
 volatile unsigned int g_ball_x_direction = 0;
 // 0 == up, 1 == down
 volatile unsigned int g_ball_y_direction = 0;
 
+// Game state
+volatile unsigned int g_game_active = 1;
+
+int IsYBounceable(int bounceboard_y, int ball_y) {
+
+    int isBounceable = 0;
+
+    if (bounceboard_y + 8 > ball_y
+        && bounceboard_y - 8 < ball_y
+    ) {
+        isBounceable = 1;
+        RIT128x96x4StringDraw("bounceable A", 44, 5, 11);
+    }
+
+    return isBounceable;
+}
 
 void CollisionDetector(void) {
-	if (g_ball_x_axis_counter == g_player_x_axis_counter+3
-			/*
-		&& (
-			g_ball_y_axis_counter == g_player_y_axis_counter
-			||
-			g_ball_y_axis_counter == g_player_y_axis_counter-1
-			||
-			g_ball_y_axis_counter == g_player_y_axis_counter-2
-		)
-		*/
-	) {
-		g_ball_x_direction = 1;
-	    RIT128x96x4StringDraw("test ok", 44, 0, 11);
+    // Hit the player
+    if (g_ball_x_axis_counter == g_player_x_axis_counter + X_WALL_SPACER
+        &&
+        IsYBounceable(g_player_y_axis_counter, g_ball_y_axis_counter) == 1
+        &&
+        g_ball_x_direction == 0
+        //IsYBounceable(g_player_y_axis_counter, g_ball_y_axis_counter) == 1
+    ) {
+        g_ball_x_direction = 1;
 
-	}
-	else if (g_ball_x_axis_counter == g_opponent_x_axis_counter-1
-		&& g_ball_y_axis_counter == g_opponent_y_axis_counter
-	) {
-		g_ball_x_direction = 0;
-	}
-	else if (g_ball_y_axis_counter == 1 || g_ball_y_axis_counter == Y_MAX-1) {
-		if (g_ball_y_direction == 1) {
-			g_ball_y_direction = 0;
-		}
-		else {
-			g_ball_y_direction = 1;
-		}
-	}
-/*
-	// left wall collision
-	else if (g_ball_x_axis_counter == 1)  || g_ball_x_axis_counter == 119) {
-
-	}
-	*/
+        g_ball_y_step = 0.5;
+        RIT128x96x4StringDraw("if A", 44, 0, 11);
+    }
+    // Hit the opponent
+    else if (g_ball_x_axis_counter == g_opponent_x_axis_counter - X_WALL_SPACER
+        && g_ball_y_axis_counter == g_opponent_y_axis_counter
+        && g_ball_x_direction == 1
+    ) {
+        g_ball_x_direction = 0;
+        RIT128x96x4StringDraw("if B", 44, 0, 11);
+    }
+    // Hit the wall
+    else if (g_ball_x_axis_counter == X_MIN || g_ball_x_axis_counter == X_MAX) {
+        g_game_active = 0;
+    }
+    // Hit the ceiling
+    else if (g_ball_x_axis_counter != X_MIN
+            && g_ball_x_axis_counter != X_MAX
+            && g_ball_y_axis_counter == Y_MIN
+    ) {
+        g_ball_y_direction = 0;
+    }
+    // Hit the floor
+    else if (g_ball_x_axis_counter != X_MIN
+            && g_ball_x_axis_counter != X_MAX
+            && g_ball_y_axis_counter == Y_MAX
+    ) {
+        g_ball_y_direction = 1;
+    }
 }
 
 void BallMovement(void) {
-	if (g_ball_x_direction == 0) {
-		g_ball_x_axis_counter--;
-	}
-	else {
-		g_ball_x_axis_counter++;
-	}
+    if (g_ball_x_direction == 0) {
+        g_ball_x_axis_counter--;
+
+    }
+    else {
+        g_ball_x_axis_counter++;
+
+        g_ball_y_axis_counter += g_ball_y_step * 1;
+    }
+
+    if (g_ball_y_direction == 0) {
+        g_ball_y_axis_counter += g_ball_y_step * 1;
+    }
+    else {
+        g_ball_y_axis_counter -= g_ball_y_step * 1;
+    }
+
+
+    char output[10];
+
+    usprintf(output, "%d,%d", g_ball_x_axis_counter, g_ball_y_axis_counter);
+
+    RIT128x96x4StringDraw(output, 25, 10, 15);
+
+
 }
 
 // Interrupt handler to catch button presses and start the scrolling function
@@ -151,8 +194,8 @@ void OpponentMovementAnimation(void) {
 void
 GPIOEIntHandler(void)
 {
-	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
-	unsigned long ulData;
+    GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
+    unsigned long ulData;
 
     //
     // Read the state of the push buttons.
@@ -162,16 +205,28 @@ GPIOEIntHandler(void)
     // UP
     if (ulData == 1)
     {
-    	if (g_player_y_axis_counter > 0) {
-    		g_player_y_axis_counter--;
-    	}
+        if (g_player_y_axis_counter > 0) {
+            g_player_y_axis_counter--;
+
+            char output[10];
+
+            usprintf(output, "%d", g_player_y_axis_counter);
+
+            RIT128x96x4StringDraw(output, 5, 10, 15);
+        }
     }
     // DOWN
     if (ulData == 2)
     {
-    	if (g_player_y_axis_counter < Y_MAX-1) {
-    		g_player_y_axis_counter++;
-    	}
+        if (g_player_y_axis_counter < Y_MAX-1) {
+            g_player_y_axis_counter++;
+
+            char output[10];
+
+            usprintf(output, "%d", g_player_y_axis_counter);
+
+            RIT128x96x4StringDraw(output, 5, 10, 15);
+        }
     }
     if (ulData == 4)
     {
@@ -196,37 +251,49 @@ GPIOEIntHandler(void)
 void
 SysTickIntHandler(void)
 {
-	   g_millisecond_hundredths_counter++;
+    if (g_game_active == 1) {
 
-	   if(g_millisecond_hundredths_counter > 99)
-	   {
-		   CollisionDetector();
+       CollisionDetector();
 
-		   BallMovement();
+       BallMovement();
 
-		   PlayerMovementAnimation();
-		   OpponentMovementAnimation();
-		   BallMovementAnimation();
+       PlayerMovementAnimation();
+       OpponentMovementAnimation();
+       BallMovementAnimation();
+       /*
 
-		   g_millisecond_hundredths_counter = 0;
-		   g_millisecond_tenths_counter++;
-		   if(g_millisecond_tenths_counter > 9)
-		   {
-			   g_millisecond_tenths_counter = 0;
-			   g_seconds_counter++;
+       g_millisecond_hundredths_counter++;
 
-			   if(g_seconds_counter > 59)
-			   {
-				   g_seconds_counter = 0;
-				   g_minutes_counter++;
-				   if(g_minutes_counter > 59)
-				   {
-					   g_minutes_counter = 0;
-				   }
-			   }
-		   }
-		}
+       if(g_millisecond_hundredths_counter > 99)
+       {
+           CollisionDetector();
 
+           BallMovement();
+
+           PlayerMovementAnimation();
+           OpponentMovementAnimation();
+           BallMovementAnimation();
+
+           g_millisecond_hundredths_counter = 0;
+           g_millisecond_tenths_counter++;
+           if(g_millisecond_tenths_counter > 9)
+           {
+               g_millisecond_tenths_counter = 0;
+               g_seconds_counter++;
+
+               if(g_seconds_counter > 59)
+               {
+                   g_seconds_counter = 0;
+                   g_minutes_counter++;
+                   if(g_minutes_counter > 59)
+                   {
+                       g_minutes_counter = 0;
+                   }
+               }
+           }
+        }
+        */
+    }
 }
 
 
@@ -250,7 +317,7 @@ __error__(char *pcFilename, unsigned long ulLine)
 int
 main(void)
 {
-	volatile int iDelay;
+    volatile int iDelay;
 
     //
     // Set the clocking to run directly from the crystal.
@@ -291,7 +358,9 @@ main(void)
     // for delay loops in the interrupt handlers.  The SysTick timer period
     // will be set up for one second.
     //
-    SysTickPeriodSet(g_ulSystemClock / 1000 );
+    //SysTickPeriodSet(g_ulSystemClock / 1000 );
+    SysTickPeriodSet(g_ulSystemClock / 50 );
+
     SysTickIntEnable();
 
     SysTickEnable();
