@@ -211,8 +211,12 @@ void CollisionDetector(void) {
     // Hit the wall
     else if (g_ball_x_axis_counter == X_MIN) {
 
-        if (g_opponent_score == 10) {
+        if (g_opponent_score == 9) {
+            g_opponent_score++;
+
             g_game_active = 0;
+
+            RIT128x96x4StringDraw("The CPU wins!", X_MAX / 5, Y_MAX / 2, 11);
         }
         else {
             g_opponent_score++;
@@ -232,8 +236,12 @@ void CollisionDetector(void) {
     }
     else if (g_ball_x_axis_counter == X_MAX) {
 
-        if (g_player_score == 10) {
+        if (g_player_score == 9) {
+            g_player_score++;
+
             g_game_active = 0;
+
+            RIT128x96x4StringDraw("You win!", X_MAX / 5, Y_MAX / 2, 11);
         }
         else {
             g_player_score++;
@@ -476,9 +484,6 @@ GPIOEIntHandler(void)
 }
 
 
-
-
-
 //*****************************************************************************
 //
 // Handles the SysTick timeout interrupt.
@@ -500,46 +505,28 @@ SysTickIntHandler(void)
        BallMovementAnimation();
 
        DisplayScores();
-       /*
-
-       g_millisecond_hundredths_counter++;
-
-       if(g_millisecond_hundredths_counter > 99)
-       {
-           CollisionDetector();
-
-           BallMovement();
-
-           PlayerMovementAnimation();
-           OpponentMovementAnimation();
-           BallMovementAnimation();
-
-           g_millisecond_hundredths_counter = 0;
-           g_millisecond_tenths_counter++;
-           if(g_millisecond_tenths_counter > 9)
-           {
-               g_millisecond_tenths_counter = 0;
-               g_seconds_counter++;
-
-               if(g_seconds_counter > 59)
-               {
-                   g_seconds_counter = 0;
-                   g_minutes_counter++;
-                   if(g_minutes_counter > 59)
-                   {
-                       g_minutes_counter = 0;
-                   }
-               }
-           }
-        }
-        */
     }
     else if (g_game_sleep == 1) {
         g_game_sleep_counter++;
 
         //RIT128x96x4StringDraw("condition A", X_MIN + 30, 10, 15);
 
+        if (g_game_sleep_counter < 30) {
+            RIT128x96x4StringDraw("3", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
+        }
+        else if (
+            g_game_sleep_counter > 30
+            && g_game_sleep_counter < 60
+        ) {
+            RIT128x96x4StringDraw("2", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
+        }
+        else {
+            RIT128x96x4StringDraw("1", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
+        }
+
         if (g_game_sleep_counter > 100) {
+            RIT128x96x4StringDraw("*", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
+
             //RIT128x96x4StringDraw("condition B", X_MIN + 30, 10, 15);
 
             g_game_sleep_counter = 0;
