@@ -48,6 +48,9 @@
 #define BALL_DIRECTION_LEFT 0
 #define BALL_DIRECTION_RIGHT 1
 
+#define BALL_X_ORIGIN 60
+#define BALL_Y_ORIGIN 44.0
+
 #define OPPONENT_DIRECTION_UP 0
 #define OPPONENT_DIRECTION_DOWN 1
 
@@ -68,8 +71,8 @@ volatile unsigned int g_opponent_x_axis_counter = X_MAX-1;
 volatile unsigned int g_opponent_y_axis_counter = 44;
 volatile unsigned int g_opponent_y_direction = OPPONENT_DIRECTION_UP;
 
-volatile float g_ball_y_axis_counter = 44.0;
-volatile unsigned int g_ball_x_axis_counter = 60;
+volatile float g_ball_y_axis_counter = BALL_Y_ORIGIN;
+volatile unsigned int g_ball_x_axis_counter = BALL_X_ORIGIN;
 
 volatile unsigned int g_ball_x_step = 0;
 volatile float g_ball_y_step = 0;
@@ -81,6 +84,10 @@ volatile unsigned int g_ball_y_direction = BALL_DIRECTION_UP;
 
 // Game state
 volatile unsigned int g_game_active = 1;
+volatile unsigned int g_game_sleep = 0;
+volatile unsigned int g_game_sleep_counter = 0;
+volatile unsigned int g_player_score = 0;
+volatile unsigned int g_opponent_score = 0;
 
 int BallDirectionForBounceboardCollision(int bounceboard_y, int ball_y) {
     int newBallDirection = 0;
@@ -176,7 +183,7 @@ void CollisionDetector(void) {
             g_ball_y_direction = BALL_DIRECTION_UP;
         }
 
-        RIT128x96x4StringDraw("if A", 44, 0, 11);
+        //RIT128x96x4StringDraw("if A", 44, 0, 11);
     }
     // Hit the opponent
     else if (g_ball_x_axis_counter == g_opponent_x_axis_counter - X_WALL_SPACER
@@ -185,7 +192,7 @@ void CollisionDetector(void) {
             &&
             g_ball_x_direction == BALL_DIRECTION_RIGHT
     ) {
-        RIT128x96x4StringDraw("if B", 44, 0, 11);
+        //RIT128x96x4StringDraw("if B", 44, 0, 11);
 
 
         g_ball_x_direction = BALL_DIRECTION_LEFT;
@@ -202,8 +209,48 @@ void CollisionDetector(void) {
 
     }
     // Hit the wall
-    else if (g_ball_x_axis_counter == X_MIN || g_ball_x_axis_counter == X_MAX) {
-        g_game_active = 0;
+    else if (g_ball_x_axis_counter == X_MIN) {
+
+        if (g_opponent_score == 10) {
+            g_game_active = 0;
+        }
+        else {
+            g_opponent_score++;
+            g_game_active = 0;
+
+            RIT128x96x4StringDraw(" ", g_ball_x_axis_counter, g_ball_y_axis_counter, 11);
+
+            g_game_sleep = 1;
+
+            g_ball_y_axis_counter = BALL_Y_ORIGIN;
+            g_ball_x_axis_counter = BALL_X_ORIGIN;
+
+            g_ball_x_direction == BALL_DIRECTION_RIGHT;
+
+            //g_game_active = 1;
+        }
+    }
+    else if (g_ball_x_axis_counter == X_MAX) {
+
+        if (g_player_score == 10) {
+            g_game_active = 0;
+        }
+        else {
+            g_player_score++;
+
+            g_game_active = 0;
+
+            RIT128x96x4StringDraw(" ", g_ball_x_axis_counter, g_ball_y_axis_counter, 11);
+
+            g_game_sleep = 1;
+
+            g_ball_y_axis_counter = BALL_Y_ORIGIN;
+            g_ball_x_axis_counter = BALL_X_ORIGIN;
+
+            g_ball_x_direction == BALL_DIRECTION_LEFT;
+
+            //g_game_active = 1;
+        }
     }
 
 }
@@ -245,13 +292,9 @@ void BallMovement(void) {
         }
     }
 
-    char output[10];
-
-    usprintf(output, "%d,%d", g_ball_x_axis_counter, g_ball_y_axis_counter);
-
-    RIT128x96x4StringDraw(output, 25, 10, 15);
-
-
+    //char output[10];
+    //usprintf(output, "%d,%d", g_ball_x_axis_counter, g_ball_y_axis_counter);
+    //RIT128x96x4StringDraw(output, 25, 10, 15);
 }
 
 void OpponentMovement(void) {
@@ -259,7 +302,7 @@ void OpponentMovement(void) {
     int invincibleVote = rand() % 100;
 
     if (invincibleVote < 70) {
-        RIT128x96x4StringDraw("opponent A", 44, 20, 11);
+       //RIT128x96x4StringDraw("opponent A", 44, 20, 11);
 
         // detect threshhold
         if (g_ball_y_axis_counter > g_opponent_y_axis_counter - 4
@@ -273,7 +316,7 @@ void OpponentMovement(void) {
     }
     // lottery schedule for regular movement vs. random movement
     else {
-        RIT128x96x4StringDraw("opponent B", 44, 20, 11);
+        //RIT128x96x4StringDraw("opponent B", 44, 20, 11);
 
         int normalMovementVote = rand() % 100;
 
@@ -324,6 +367,14 @@ void PlayerMovementAnimation(void) {
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 1, 11);
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 2, 11);
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 3, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 4, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 5, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 6, 11);
+
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 6, 11);
+
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 5, 11);
+    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 4, 11);
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 3, 11);
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 2, 11);
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 1, 11);
@@ -342,9 +393,31 @@ void OpponentMovementAnimation(void) {
     RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter + 1, 11);
     RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter, 11);
     RIT128x96x4StringDraw("|", g_opponent_x_axis_counter, g_opponent_y_axis_counter, 11);
-
 }
 
+void DisplayScores(void) {
+
+    char playerScoreString[10];
+    usprintf(playerScoreString, "%d", g_player_score);
+    RIT128x96x4StringDraw(playerScoreString, X_MIN + 10, 0, 15);
+
+    char opponentScoreString[10];
+    usprintf(opponentScoreString, "%d", g_opponent_score);
+    RIT128x96x4StringDraw(opponentScoreString, X_MAX - 10, 0, 15);
+}
+
+/*
+void DrawCourtLine(void) {
+
+    int i = 0;
+
+    for (i = 0; i < Y_MAX; i++) {
+        if (i % 2 == 0) {
+            RIT128x96x4StringDraw(".", X_MAX / 2, i, 11);
+        }
+    }
+}
+*/
 
 void
 GPIOEIntHandler(void)
@@ -361,27 +434,34 @@ GPIOEIntHandler(void)
     if (ulData == 1)
     {
         if (g_player_y_axis_counter > 0) {
-            g_player_y_axis_counter = g_player_y_axis_counter - 3;
+            g_player_y_axis_counter = g_player_y_axis_counter - 4;
 
+            PlayerMovementAnimation();
+
+            /*
             char output[10];
 
             usprintf(output, "%d", g_player_y_axis_counter);
 
             RIT128x96x4StringDraw(output, 5, 10, 15);
+            */
         }
     }
     // DOWN
     if (ulData == 2)
     {
         if (g_player_y_axis_counter < Y_MAX-1) {
-            g_player_y_axis_counter = g_player_y_axis_counter + 3;
+            g_player_y_axis_counter = g_player_y_axis_counter + 4;
 
+            PlayerMovementAnimation();
 
+/*
             char output[10];
 
             usprintf(output, "%d", g_player_y_axis_counter);
 
             RIT128x96x4StringDraw(output, 5, 10, 15);
+*/
         }
     }
     if (ulData == 4)
@@ -418,6 +498,8 @@ SysTickIntHandler(void)
        PlayerMovementAnimation();
        OpponentMovementAnimation();
        BallMovementAnimation();
+
+       DisplayScores();
        /*
 
        g_millisecond_hundredths_counter++;
@@ -451,6 +533,19 @@ SysTickIntHandler(void)
            }
         }
         */
+    }
+    else if (g_game_sleep == 1) {
+        g_game_sleep_counter++;
+
+        //RIT128x96x4StringDraw("condition A", X_MIN + 30, 10, 15);
+
+        if (g_game_sleep_counter > 100) {
+            //RIT128x96x4StringDraw("condition B", X_MIN + 30, 10, 15);
+
+            g_game_sleep_counter = 0;
+            g_game_sleep = 0;
+            g_game_active = 1;
+        }
     }
 }
 
