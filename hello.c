@@ -41,6 +41,12 @@
 #define Y_MAX 88
 #define X_WALL_SPACER 5
 #define BOARD_TOLERANCE 7
+#define BOARD_SHALLOW_ANGLE_OFFSET 3
+
+#define BALL_DIRECTION_UP 0
+#define BALL_DIRECTION_DOWN 1
+#define BALL_DIRECTION_LEFT 0
+#define BALL_DIRECTION_RIGHT 1
 
 volatile unsigned long g_ulSystemClock;
 
@@ -79,7 +85,7 @@ int BallDirectionForBounceboardCollision(int bounceboard_y, int ball_y) {
     if (bounceboard_y + BOARD_TOLERANCE > ball_y
         && bounceboard_y < ball_y
     ) {
-        newBallDirection = 1;
+        newBallDirection = BALL_DIRECTION_DOWN;
     }
     // middle
     else if (bounceboard_y == ball_y) {
@@ -89,7 +95,7 @@ int BallDirectionForBounceboardCollision(int bounceboard_y, int ball_y) {
     else if (bounceboard_y - BOARD_TOLERANCE < ball_y
         && bounceboard_y > ball_y
     ) {
-        newBallDirection = 0;
+        newBallDirection = BALL_DIRECTION_UP;
     }
 
     return newBallDirection;
@@ -103,18 +109,29 @@ float BallYBounceAngle(int bounceboard_y, int ball_y) {
     if (bounceboard_y + BOARD_TOLERANCE > ball_y
         && bounceboard_y < ball_y
     ) {
-        ball_bounce_y_angle = 0.2;
+        ball_bounce_y_angle = 0.75;
 
+    }
+    // middle-bottom
+    else if (bounceboard_y + BOARD_TOLERANCE - BOARD_SHALLOW_ANGLE_OFFSET > ball_y
+            && bounceboard_y < ball_y
+    ) {
+        ball_bounce_y_angle = 0.2;
     }
     // middle
     else if (bounceboard_y == ball_y) {
         ball_bounce_y_angle = 0;
     }
+    // middle-top
+    else if (bounceboard_y - BOARD_TOLERANCE + BOARD_SHALLOW_ANGLE_OFFSET < ball_y
+            && bounceboard_y > ball_y) {
+        ball_bounce_y_angle = 0.2;
+    }
     // top
     else if (bounceboard_y - BOARD_TOLERANCE < ball_y
         && bounceboard_y > ball_y
     ) {
-        ball_bounce_y_angle = 0.2;
+        ball_bounce_y_angle = 0.75;
     }
 
     return ball_bounce_y_angle;
@@ -136,73 +153,114 @@ int IsYBounceable(int bounceboard_y, int ball_y) {
 
 void CollisionDetector(void) {
     // Hit the player
-    if (g_ball_x_axis_counter == g_player_x_axis_counter + X_WALL_SPACER
+    if (g_ball_x_axis_counter == (g_player_x_axis_counter + X_WALL_SPACER)
         &&
         IsYBounceable(g_player_y_axis_counter, g_ball_y_axis_counter) == 1
         &&
-        g_ball_x_direction == 0
-        //IsYBounceable(g_player_y_axis_counter, g_ball_y_axis_counter) == 1
+        g_ball_x_direction == BALL_DIRECTION_LEFT
     ) {
-        g_ball_x_direction = 1;
+        g_ball_x_direction = BALL_DIRECTION_RIGHT;
 
         g_ball_y_step = BallYBounceAngle(g_player_y_axis_counter, g_ball_y_axis_counter);
 
         float newBallDirection = BallDirectionForBounceboardCollision(g_player_y_axis_counter, g_ball_y_axis_counter);
 
-        if (newBallDirection == 1) {
-            g_ball_y_direction = 0;
+        if (newBallDirection == BALL_DIRECTION_DOWN) {
+            g_ball_y_direction = BALL_DIRECTION_DOWN;
         }
-        else if (newBallDirection == 0) {
-            g_ball_y_direction = 1;
+        else if (newBallDirection == BALL_DIRECTION_UP) {
+            g_ball_y_direction = BALL_DIRECTION_UP;
         }
 
-        //RIT128x96x4StringDraw("if A", 44, 0, 11);
+        RIT128x96x4StringDraw("if A", 44, 0, 11);
     }
     // Hit the opponent
     else if (g_ball_x_axis_counter == g_opponent_x_axis_counter - X_WALL_SPACER
-        && g_ball_y_axis_counter == g_opponent_y_axis_counter
-        && g_ball_x_direction == 1
+            &&
+            IsYBounceable(g_opponent_y_axis_counter, g_ball_y_axis_counter) == 1
+            &&
+            g_ball_x_direction == BALL_DIRECTION_RIGHT
     ) {
-        g_ball_x_direction = 0;
-        //RIT128x96x4StringDraw("if B", 44, 0, 11);
+        RIT128x96x4StringDraw("if B", 44, 0, 11);
+
+
+        g_ball_x_direction = BALL_DIRECTION_LEFT;
         g_ball_y_step = BallYBounceAngle(g_opponent_y_axis_counter, g_ball_y_axis_counter);
+
+        float newBallDirection = BallDirectionForBounceboardCollision(g_opponent_y_axis_counter, g_ball_y_axis_counter);
+
+        if (newBallDirection == BALL_DIRECTION_DOWN) {
+            g_ball_y_direction = BALL_DIRECTION_DOWN;
+        }
+        else if (newBallDirection == BALL_DIRECTION_UP) {
+            g_ball_y_direction = BALL_DIRECTION_UP;
+        }
+
     }
     // Hit the wall
     else if (g_ball_x_axis_counter == X_MIN || g_ball_x_axis_counter == X_MAX) {
         g_game_active = 0;
     }
-    // Hit the ceiling
-    else if (g_ball_x_axis_counter != X_MIN
-            && g_ball_x_axis_counter != X_MAX
-            && g_ball_y_axis_counter == Y_MIN
-    ) {
-        g_ball_y_direction = 0;
-    }
-    // Hit the floor
-    else if (g_ball_x_axis_counter != X_MIN
-            && g_ball_x_axis_counter != X_MAX
-            && g_ball_y_axis_counter == Y_MAX
-    ) {
-        g_ball_y_direction = 1;
-    }
+
 }
 
 void BallMovement(void) {
-    if (g_ball_x_direction == 0) {
+    if (g_ball_x_direction == BALL_DIRECTION_LEFT) {
         g_ball_x_axis_counter--;
     }
     else {
         g_ball_x_axis_counter++;
     }
 
-    if (g_ball_y_direction == 0) {
-        g_ball_y_axis_counter += g_ball_y_step * 1;
+    if (g_ball_y_direction == BALL_DIRECTION_DOWN) {
+
+        if (g_ball_y_axis_counter < Y_MAX-1) {
+            g_ball_y_axis_counter += g_ball_y_step;
+            RIT128x96x4StringDraw("ball A", 44, 20, 11);
+        }
+        else {
+            g_ball_y_direction = BALL_DIRECTION_UP;
+            RIT128x96x4StringDraw("ball B", 44, 20, 11);
+
+        }
     }
     else {
-        g_ball_y_axis_counter -= g_ball_y_step * 1;
+
+        RIT128x96x4StringDraw("ball E", 44, 20, 11);
+
+
+        if (g_ball_y_axis_counter > Y_MIN+1) {
+            g_ball_y_axis_counter -= g_ball_y_step;
+            RIT128x96x4StringDraw("ball C", 44, 20, 11);
+
+        }
+        else {
+            g_ball_y_direction = BALL_DIRECTION_DOWN;
+            RIT128x96x4StringDraw("ball D", 44, 20, 11);
+
+        }
     }
 
-
+/*
+    // Hit the ceiling
+    else if (g_ball_x_axis_counter > X_MIN
+            && g_ball_x_axis_counter < X_MAX
+            && g_ball_y_axis_counter == Y_MIN + 10
+            && g_ball_y_direction == BALL_DIRECTION_UP
+    ) {
+        g_ball_y_direction = BALL_DIRECTION_DOWN;
+        RIT128x96x4StringDraw("if C", 44, 0, 11);
+    }
+    // Hit the floor
+    else if (g_ball_x_axis_counter != X_MIN
+            && g_ball_x_axis_counter != X_MAX
+            && g_ball_y_axis_counter == Y_MAX - 10
+            && g_ball_y_direction == BALL_DIRECTION_DOWN
+    ) {
+        g_ball_y_direction = BALL_DIRECTION_UP;
+        RIT128x96x4StringDraw("if D", 44, 0, 11);
+    }
+*/
     char output[10];
 
     usprintf(output, "%d,%d", g_ball_x_axis_counter, g_ball_y_axis_counter);
@@ -415,8 +473,9 @@ main(void)
     // for delay loops in the interrupt handlers.  The SysTick timer period
     // will be set up for one second.
     //
-    //SysTickPeriodSet(g_ulSystemClock / 1000 );
-    SysTickPeriodSet(g_ulSystemClock / 50 );
+    //SysTickPeriodSet(g_ulSystemClock / 50 );
+    SysTickPeriodSet(g_ulSystemClock / 10 );
+
 
     SysTickIntEnable();
 
