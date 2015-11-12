@@ -1,24 +1,21 @@
 //*****************************************************************************
 //
-// hello.c - Simple hello world example.
+// Asim Saleem Phathekhan <asim.saleem@utexas.edu>
+// Walter Scarborough <walter.scarborough@utexas.edu>
 //
-// Copyright (c) 2006-2013 Texas Instruments Incorporated.  All rights reserved.
-// Software License Agreement
+// Pong - Using LM3S8962
+// Embedded Systems Final Project
+// 11/Nov/2015
 //
-// Texas Instruments (TI) is supplying this software for use solely and
-// exclusively on TI's microcontroller products. The software is owned by
-// TI and/or its suppliers, and is protected under applicable copyright
-// laws. You may not combine this software with "viral" open-source
-// software in order to form a larger program.
+// This is our implementation of pong on the LM3S8962 board!
 //
-// THIS SOFTWARE IS PROVIDED "AS IS" AND WITH ALL FAULTS.
-// NO WARRANTIES, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT
-// NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. TI SHALL NOT, UNDER ANY
-// CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL, OR CONSEQUENTIAL
-// DAMAGES, FOR ANY REASON WHATSOEVER.
+// It features:
+// * a balanced opponent AI
+// * smooth animation
+// * player and opponent score
+// * realistic ball and bounce board collisions/physics
 //
-// This is part of revision 10007 of the EK-LM3S8962 Firmware Package.
+// We have added comments throughout the code to explain what each function does.
 //
 //*****************************************************************************
 
@@ -35,14 +32,22 @@
 #include "drivers/rit128x96x4.h"
 #include "utils/ustdlib.h"
 
+////////////////////////
+// Pong Global Constants
+////////////////////////
+
+// Grid
 #define X_MIN 0
 #define X_MAX 120
 #define Y_MIN 0
 #define Y_MAX 88
 #define X_WALL_SPACER 5
+
+// Bounce boards
 #define BOARD_TOLERANCE 7
 #define BOARD_SHALLOW_ANGLE_OFFSET 3
 
+// Ball
 #define BALL_DIRECTION_UP 0
 #define BALL_DIRECTION_DOWN 1
 #define BALL_DIRECTION_LEFT 0
@@ -51,44 +56,50 @@
 #define BALL_X_ORIGIN 60
 #define BALL_Y_ORIGIN 44.0
 
+// AI
 #define OPPONENT_DIRECTION_UP 0
 #define OPPONENT_DIRECTION_DOWN 1
 
+/////////////////
+// Pong Variables
+/////////////////
+
+// Systick
 volatile unsigned long g_ulSystemClock;
 
-volatile unsigned int g_millisecond_hundredths_counter;
-volatile unsigned int g_millisecond_tenths_counter;
-volatile unsigned int g_seconds_counter;
-volatile unsigned int g_minutes_counter;
+// Player Coordinates
+volatile unsigned int g_player_x_axis_counter = X_MIN;
+volatile unsigned int g_player_y_axis_counter = Y_MAX / 2;
 
-// docs say x is 96, y is 128
-// x max is 120
-// y max is 88
-volatile unsigned int g_player_x_axis_counter = 0;
-volatile unsigned int g_player_y_axis_counter = 44;
-
+// Opponent Coordinates
 volatile unsigned int g_opponent_x_axis_counter = X_MAX-1;
-volatile unsigned int g_opponent_y_axis_counter = 44;
+volatile unsigned int g_opponent_y_axis_counter = Y_MAX / 2;
 volatile unsigned int g_opponent_y_direction = OPPONENT_DIRECTION_UP;
 
+// Ball Coordinates
 volatile float g_ball_y_axis_counter = BALL_Y_ORIGIN;
 volatile unsigned int g_ball_x_axis_counter = BALL_X_ORIGIN;
 
+// Ball Angle
 volatile unsigned int g_ball_x_step = 0;
 volatile float g_ball_y_step = 0;
 
-// 0 == left, 1 == right
+// Ball Movement
 volatile unsigned int g_ball_x_direction = BALL_DIRECTION_LEFT;
-// 0 == up, 1 == down
 volatile unsigned int g_ball_y_direction = BALL_DIRECTION_UP;
 
-// Game state
+// General Game State
 volatile unsigned int g_game_active = 1;
 volatile unsigned int g_game_sleep = 0;
 volatile unsigned int g_game_sleep_counter = 0;
 volatile unsigned int g_player_score = 0;
 volatile unsigned int g_opponent_score = 0;
 
+//////////////////////
+// Pong Game Functions
+//////////////////////
+
+// Determines which direction the ball should move after colliding with a bounce board
 int BallDirectionForBounceboardCollision(int bounceboard_y, int ball_y) {
     int newBallDirection = 0;
 
@@ -112,6 +123,9 @@ int BallDirectionForBounceboardCollision(int bounceboard_y, int ball_y) {
     return newBallDirection;
 }
 
+// Determines the angle that the ball should move at after colliding with a bounce board
+// We have set up 5 regions: bottom, middle-bottom, middle, middle-top, and top.
+// The bottom and top regions will push the ball in the the widest outgoing angles.
 float BallYBounceAngle(int bounceboard_y, int ball_y) {
 
     float ball_bounce_y_angle = 0.0;
@@ -148,6 +162,7 @@ float BallYBounceAngle(int bounceboard_y, int ball_y) {
     return ball_bounce_y_angle;
 }
 
+// Determines whether the ball y-axis position is within an tolerance range of the bounce board y-axis position
 int IsYBounceable(int bounceboard_y, int ball_y) {
 
     int isBounceable = 0;
@@ -156,13 +171,14 @@ int IsYBounceable(int bounceboard_y, int ball_y) {
         && bounceboard_y - BOARD_TOLERANCE < ball_y
     ) {
         isBounceable = 1;
-        //RIT128x96x4StringDraw("bounceable A", 44, 5, 11);
     }
 
     return isBounceable;
 }
 
+// Determines whether the ball hits the player, opponent, or the wall
 void CollisionDetector(void) {
+
     // Hit the player
     if (g_ball_x_axis_counter == (g_player_x_axis_counter + X_WALL_SPACER)
         &&
@@ -170,6 +186,7 @@ void CollisionDetector(void) {
         &&
         g_ball_x_direction == BALL_DIRECTION_LEFT
     ) {
+
         g_ball_x_direction = BALL_DIRECTION_RIGHT;
 
         g_ball_y_step = BallYBounceAngle(g_player_y_axis_counter, g_ball_y_axis_counter);
@@ -182,8 +199,6 @@ void CollisionDetector(void) {
         else if (newBallDirection == BALL_DIRECTION_UP) {
             g_ball_y_direction = BALL_DIRECTION_UP;
         }
-
-        //RIT128x96x4StringDraw("if A", 44, 0, 11);
     }
     // Hit the opponent
     else if (g_ball_x_axis_counter == g_opponent_x_axis_counter - X_WALL_SPACER
@@ -192,8 +207,6 @@ void CollisionDetector(void) {
             &&
             g_ball_x_direction == BALL_DIRECTION_RIGHT
     ) {
-        //RIT128x96x4StringDraw("if B", 44, 0, 11);
-
 
         g_ball_x_direction = BALL_DIRECTION_LEFT;
         g_ball_y_step = BallYBounceAngle(g_opponent_y_axis_counter, g_ball_y_axis_counter);
@@ -208,8 +221,10 @@ void CollisionDetector(void) {
         }
 
     }
-    // Hit the wall
+    // Hit the player wall
     else if (g_ball_x_axis_counter == X_MIN) {
+
+        g_ball_y_step = 0;
 
         if (g_opponent_score == 9) {
             g_opponent_score++;
@@ -230,11 +245,12 @@ void CollisionDetector(void) {
             g_ball_x_axis_counter = BALL_X_ORIGIN;
 
             g_ball_x_direction == BALL_DIRECTION_RIGHT;
-
-            //g_game_active = 1;
         }
     }
+    // Hit the opponent wall
     else if (g_ball_x_axis_counter == X_MAX) {
+
+        g_ball_y_step = 0;
 
         if (g_player_score == 9) {
             g_player_score++;
@@ -256,13 +272,12 @@ void CollisionDetector(void) {
             g_ball_x_axis_counter = BALL_X_ORIGIN;
 
             g_ball_x_direction == BALL_DIRECTION_LEFT;
-
-            //g_game_active = 1;
         }
     }
 
 }
 
+// Moves the ball by incrementing its x-axis and y-axis counters. All y-axis movement will take the current angle into consideration.
 void BallMovement(void) {
     if (g_ball_x_direction == BALL_DIRECTION_LEFT) {
         g_ball_x_axis_counter--;
@@ -275,44 +290,38 @@ void BallMovement(void) {
 
         if (g_ball_y_axis_counter < Y_MAX-1) {
             g_ball_y_axis_counter += g_ball_y_step;
-            //RIT128x96x4StringDraw("ball A", 44, 20, 11);
         }
         else {
             g_ball_y_direction = BALL_DIRECTION_UP;
-            //RIT128x96x4StringDraw("ball B", 44, 20, 11);
-
         }
     }
     else {
 
-        //RIT128x96x4StringDraw("ball E", 44, 20, 11);
-
-
         if (g_ball_y_axis_counter > Y_MIN+1) {
             g_ball_y_axis_counter -= g_ball_y_step;
-            //RIT128x96x4StringDraw("ball C", 44, 20, 11);
-
         }
         else {
             g_ball_y_direction = BALL_DIRECTION_DOWN;
-            //RIT128x96x4StringDraw("ball D", 44, 20, 11);
-
         }
     }
-
-    //char output[10];
-    //usprintf(output, "%d,%d", g_ball_x_axis_counter, g_ball_y_axis_counter);
-    //RIT128x96x4StringDraw(output, 25, 10, 15);
 }
 
+// Moves the opponent board by invoking either an "invincible" or "linear" playing strategy.
+// The strategy used is determined by a lottery scheduling algorithm.
+// There's a higher chance of the AI using the "invincible" strategy, but by occasionally voting for the "linear" strategy it will eventually make a mistake
+// and allow the player to score a point.
+//
+// The "linear" strategy has a second lottery vote to determine whether the board will truly move linearly,
+// or incorporate a random variation in its movement.
 void OpponentMovement(void) {
 
+    // Take the vote for "invincible" or "linear" mode
     int invincibleVote = rand() % 100;
 
+    // Voted for invincible mode
     if (invincibleVote < 70) {
-       //RIT128x96x4StringDraw("opponent A", 44, 20, 11);
 
-        // detect threshhold
+        // Adjust the opponent movement to move its bounce board hit range to match the current ball location
         if (g_ball_y_axis_counter > g_opponent_y_axis_counter - 4
         ) {
             g_opponent_y_direction = OPPONENT_DIRECTION_DOWN;
@@ -322,12 +331,13 @@ void OpponentMovement(void) {
             g_opponent_y_direction = OPPONENT_DIRECTION_UP;
         }
     }
-    // lottery schedule for regular movement vs. random movement
+    // Voted for linear mode
     else {
-        //RIT128x96x4StringDraw("opponent B", 44, 20, 11);
 
+        // Take the vote for pure linear movement, or whether to incorporate a random variation
         int normalMovementVote = rand() % 100;
 
+        // Voted for pure linear movement
         if (normalMovementVote > 95) {
             if (g_opponent_y_direction == OPPONENT_DIRECTION_UP) {
                 g_opponent_y_direction = OPPONENT_DIRECTION_DOWN;
@@ -338,6 +348,7 @@ void OpponentMovement(void) {
         }
     }
 
+    // Update opponent y-axis counters for movement
     if (g_opponent_y_direction == OPPONENT_DIRECTION_UP) {
         if (g_opponent_y_axis_counter > Y_MIN) {
             g_opponent_y_axis_counter--;
@@ -356,53 +367,56 @@ void OpponentMovement(void) {
     }
 }
 
-// Interrupt handler to catch button presses and start the scrolling function
+// Animate ball movement by drawing the ball's current position.
+// Also cleans up space around the ball to prevent unwanted animation pixel "trails".
+// Cleanup is done by drawing blank spaces around the ball.
 void BallMovementAnimation(void) {
 
+    int i = 1;
+    for (i = 1; i <= 2; i++) {
+        RIT128x96x4StringDraw(" ", g_ball_x_axis_counter - i, g_ball_y_axis_counter - i, 11);
+        RIT128x96x4StringDraw(" ", g_ball_x_axis_counter + i, g_ball_y_axis_counter + i, 11);
+    }
 
-    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter - 1, g_ball_y_axis_counter - 1, 11);
-    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter - 2, g_ball_y_axis_counter - 2, 11);
-    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter + 2, g_ball_y_axis_counter + 2, 11);
-    RIT128x96x4StringDraw(" ", g_ball_x_axis_counter + 1, g_ball_y_axis_counter + 1, 11);
     RIT128x96x4StringDraw("*", g_ball_x_axis_counter, g_ball_y_axis_counter, 11);
-
 }
 
+// Animate player movement by drawing the player's current position.
+// Also cleans up space around the player to prevent unwanted animation pixel "trails".
+// Cleanup is done by drawing blank spaces around the player bounce board.
+// The player has a fairly wide movement range to help the controls stay responsive,
+// so there is quite a bit of cleanup that needs to be done.
 void PlayerMovementAnimation(void) {
-    //const char time[15];
-    //usprintf(time, "   %02d:%02d.%d   ", g_uiMinutes, g_uiSeconds, g_uiTenths);
 
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 1, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 2, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 3, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 4, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 5, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - 6, 11);
+    int i = 1;
+    for (i = 1; i <= 6; i++) {
+        RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter - i, 11);
+        RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + i, 11);
 
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 6, 11);
+    }
 
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 5, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 4, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 3, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 2, 11);
-    RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter + 1, 11);
     RIT128x96x4StringDraw(" ", g_player_x_axis_counter, g_player_y_axis_counter, 11);
     RIT128x96x4StringDraw("|", g_player_x_axis_counter, g_player_y_axis_counter, 11);
-
 }
 
+// Animate opponent movement by drawing the opponent's current position.
+// Also cleans up space around the opponent to prevent unwanted animation pixel "trails".
+// Cleanup is done by drawing blank spaces around the opponent bounce board.
 void OpponentMovementAnimation(void) {
-    //const char time[15];
-    //usprintf(time, "   %02d:%02d.%d   ", g_uiMinutes, g_uiSeconds, g_uiTenths);
 
-    RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter - 1, 11);
-    RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter - 2, 11);
-    RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter + 2, 11);
-    RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter + 1, 11);
+    int i = 1;
+    for (i = 1; i <= 2; i++) {
+        RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter - i, 11);
+        RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter + i, 11);
+    }
+
     RIT128x96x4StringDraw(" ", g_opponent_x_axis_counter, g_opponent_y_axis_counter, 11);
     RIT128x96x4StringDraw("|", g_opponent_x_axis_counter, g_opponent_y_axis_counter, 11);
 }
 
+// Displays current score values on the screen.
+// The player score appears in the top left hand corner of the screen.
+// The opponent score appears in the top right hand corner of the screen.
 void DisplayScores(void) {
 
     char playerScoreString[10];
@@ -414,22 +428,17 @@ void DisplayScores(void) {
     RIT128x96x4StringDraw(opponentScoreString, X_MAX - 10, 0, 15);
 }
 
-/*
-void DrawCourtLine(void) {
+//////////////////////
+// Pong Game Interrupts
+//////////////////////
 
-    int i = 0;
-
-    for (i = 0; i < Y_MAX; i++) {
-        if (i % 2 == 0) {
-            RIT128x96x4StringDraw(".", X_MAX / 2, i, 11);
-        }
-    }
-}
-*/
-
-void
-GPIOEIntHandler(void)
-{
+// Collect player button presses.
+// Since the player bounce board can only move vertically along the y-axis, we are only interested
+// in collecting input for the "up" and "down" buttons.
+//
+// Player animation is updated here to account for timing differences. Animation will not be smooth
+// if we have to wait for the next systick event.
+void GPIOEIntHandler(void) {
     GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
     unsigned long ulData;
 
@@ -445,14 +454,6 @@ GPIOEIntHandler(void)
             g_player_y_axis_counter = g_player_y_axis_counter - 4;
 
             PlayerMovementAnimation();
-
-            /*
-            char output[10];
-
-            usprintf(output, "%d", g_player_y_axis_counter);
-
-            RIT128x96x4StringDraw(output, 5, 10, 15);
-            */
         }
     }
     // DOWN
@@ -462,36 +463,16 @@ GPIOEIntHandler(void)
             g_player_y_axis_counter = g_player_y_axis_counter + 4;
 
             PlayerMovementAnimation();
-
-/*
-            char output[10];
-
-            usprintf(output, "%d", g_player_y_axis_counter);
-
-            RIT128x96x4StringDraw(output, 5, 10, 15);
-*/
         }
     }
-    if (ulData == 4)
-    {
-
-    }
-    if (ulData == 8)
-    {
-
-    }
-
 }
 
+// The entire game runs on systick intervals.
+// It is important to detect incoming collisions before allowing any other automated (non player) movement.
+// This helps keep the game play realistic (e.g. the ball can't fly through a bounce board, etc).
+void SysTickIntHandler(void) {
 
-//*****************************************************************************
-//
-// Handles the SysTick timeout interrupt.
-//
-//*****************************************************************************
-void
-SysTickIntHandler(void)
-{
+    // Handle gameplay if the game is active
     if (g_game_active == 1) {
 
        CollisionDetector();
@@ -506,10 +487,9 @@ SysTickIntHandler(void)
 
        DisplayScores();
     }
+    // Count down to the next match if the game is paused due to a point being won.
     else if (g_game_sleep == 1) {
         g_game_sleep_counter++;
-
-        //RIT128x96x4StringDraw("condition A", X_MIN + 30, 10, 15);
 
         if (g_game_sleep_counter < 30) {
             RIT128x96x4StringDraw("3", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
@@ -524,10 +504,9 @@ SysTickIntHandler(void)
             RIT128x96x4StringDraw("1", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
         }
 
+
         if (g_game_sleep_counter > 100) {
             RIT128x96x4StringDraw("*", BALL_X_ORIGIN, BALL_Y_ORIGIN, 11);
-
-            //RIT128x96x4StringDraw("condition B", X_MIN + 30, 10, 15);
 
             g_game_sleep_counter = 0;
             g_game_sleep = 0;
@@ -554,16 +533,14 @@ __error__(char *pcFilename, unsigned long ulLine)
 // Main program.
 //
 //*****************************************************************************
-int
-main(void)
-{
+int main(void) {
     volatile int iDelay;
 
     //
     // Set the clocking to run directly from the crystal.
     //
     //
-    // Set the clocking to run at 50MHz from the PLL.
+    // Set the clocking to /run at 50MHz from the PLL.
     //
     SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                    SYSCTL_XTAL_8MHZ);
