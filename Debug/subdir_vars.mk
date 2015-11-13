@@ -7,27 +7,27 @@ CMD_SRCS += \
 ../hello_ccs.cmd 
 
 C_SRCS += \
-../hello.c \
+../pong.c \
 ../startup_ccs.c 
 
 OBJS += \
-./hello.obj \
+./pong.obj \
 ./startup_ccs.obj 
 
 C_DEPS += \
-./hello.pp \
+./pong.pp \
 ./startup_ccs.pp 
 
 C_DEPS__QUOTED += \
-"hello.pp" \
+"pong.pp" \
 "startup_ccs.pp" 
 
 OBJS__QUOTED += \
-"hello.obj" \
+"pong.obj" \
 "startup_ccs.obj" 
 
 C_SRCS__QUOTED += \
-"../hello.c" \
+"../pong.c" \
 "../startup_ccs.c" 
 
 

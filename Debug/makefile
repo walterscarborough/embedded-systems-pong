@@ -11,7 +11,7 @@ $(GEN_CMDS__FLAG) \
 "./drivers/rit128x96x4.obj" \
 "./utils/ustdlib.obj" \
 "./startup_ccs.obj" \
-"./hello.obj" \
+"./pong.obj" \
 -l"libc.a" \
 -l"C:/StellarisWare/boards/ek-lm3s8962/hello/ccs/../../../../driverlib/ccs-cm3/Debug/driverlib-cm3.lib" \
 "../hello_ccs.cmd" \
@@ -117,27 +117,27 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: hello.out
+all: pong.out
 
 # Tool invocations
-hello.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
+pong.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM Linker'
-	"C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/bin/cl470" -mv7M3 --code_state=16 --abi=eabi -me -O2 -g --gcc --define=ccs="ccs" --define=PART_LM3S8962 --diag_warning=225 --display_error_number --gen_func_subsections=on --ual -z --stack_size=256 -m"hello_ccs.map" --heap_size=0 -i"C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/lib" -i"C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/include" --reread_libs --warn_sections --display_error_number --rom_model -o "hello.out" $(ORDERED_OBJS)
+	"C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/bin/cl470" -mv7M3 --code_state=16 --abi=eabi -me -O2 -g --gcc --define=ccs="ccs" --define=PART_LM3S8962 --diag_warning=225 --display_error_number --gen_func_subsections=on --ual -z --stack_size=256 -m"hello_ccs.map" --heap_size=0 -i"C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/lib" -i"C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/include" --reread_libs --warn_sections --display_error_number --rom_model -o "pong.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 	$(MAKE) --no-print-directory post-build
 
 # Other Targets
 clean:
-	-$(RM) $(TMS470_EXECUTABLE_OUTPUTS__QUOTED) "hello.out"
-	-$(RM) "hello.pp" "startup_ccs.pp" "utils\ustdlib.pp" "drivers\rit128x96x4.pp" 
-	-$(RM) "hello.obj" "startup_ccs.obj" "utils\ustdlib.obj" "drivers\rit128x96x4.obj" 
+	-$(RM) $(TMS470_EXECUTABLE_OUTPUTS__QUOTED) "pong.out"
+	-$(RM) "pong.pp" "startup_ccs.pp" "utils\ustdlib.pp" "drivers\rit128x96x4.pp" 
+	-$(RM) "pong.obj" "startup_ccs.obj" "utils\ustdlib.obj" "drivers\rit128x96x4.obj" 
 	-@echo 'Finished clean'
 	-@echo ' '
 
 post-build:
-	-"C:/Program Files/ti/ccsv5/utils/tiobj2bin/tiobj2bin" "hello.out" "hello.bin" "C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/bin/ofd470" "C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/bin/hex470" "C:/Program Files/ti/ccsv5/utils/tiobj2bin/mkhex4bin"
+	-"C:/Program Files/ti/ccsv5/utils/tiobj2bin/tiobj2bin" "pong.out" "pong.bin" "C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/bin/ofd470" "C:/Program Files/ti/ccsv5/tools/compiler/tms470_4.9.5/bin/hex470" "C:/Program Files/ti/ccsv5/utils/tiobj2bin/mkhex4bin"
 	-@echo ' '
 
 .PHONY: all clean dependents

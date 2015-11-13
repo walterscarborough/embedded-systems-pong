@@ -1,1 +1,1 @@
-"../hello.c" "../startup_ccs.c" 
+"../pong.c" "../startup_ccs.c" 
